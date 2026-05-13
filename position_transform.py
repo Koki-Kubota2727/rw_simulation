@@ -1,30 +1,10 @@
 import numpy as np
+import sys
+import os
 
-# --- Step 2: 取り付け配置と変換行列 T_i の計算 ---
-#
-# 取り付け位置 3か所、向きの組み合わせで合計 6 配置（3+2+1）。
-# 2か所では構造的にランク5が上限。3か所あれば位置差が2方向に広がり
-# ランク6を達成できる（向きは軸方向のみで十分）。
-
-# 取り付け位置 3か所 [m]
-r_A = np.array([ 0.10,  0.05,  0.00])
-r_B = np.array([-0.08,  0.00,  0.12])
-r_C = np.array([ 0.05, -0.10,  0.08])
-
-# 6 配置: (位置, スピン軸方向)
-#   位置 A: x, y, z の 3 方向
-#   位置 B: x, y の 2 方向
-#   位置 C: z の 1 方向
-CONFIGS_SPEC = [
-    (r_A, np.array([1, 0, 0])),   # A-x
-    (r_A, np.array([0, 1, 0])),   # A-y
-    (r_A, np.array([0, 0, 1])),   # A-z
-    (r_B, np.array([1, 0, 0])),   # B-x
-    (r_B, np.array([0, 1, 0])),   # B-y
-    (r_C, np.array([0, 0, 1])),   # C-z
-]
-
-CONFIG_LABELS = ["A-x", "A-y", "A-z", "B-x", "B-y", "C-z"]
+# D最適化で生成した配置ファイルを参照
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "d_optimize", "result"))
+from optimal_configs import CONFIGS_SPEC, CONFIG_LABELS  # noqa: E402
 
 
 def skew(r):
@@ -79,27 +59,40 @@ def build_U_mat(u_rw):
 def plot_configs(save_path="configs_3d.png"):
     """取り付け位置と向きを3D空間上に矢印で描画する"""
     import matplotlib.pyplot as plt
-    from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
+    from mpl_toolkits.mplot3d.axes3d import Axes3D
+    from typing import cast
 
-    pos_colors = {"A": "steelblue", "B": "darkorange", "C": "forestgreen"}
-    arrow_len = 0.05   # スピン軸矢印の長さ [m]
+    # 位置ごとに色を割り当て（重複する r を同色にする）
+    palette = ["steelblue", "darkorange", "forestgreen", "crimson", "purple"]
+    pos_color_map: dict[int, str] = {}
+    pos_id_map: dict[bytes, int] = {}
+
+    def pos_id(r: np.ndarray) -> int:
+        key = r.tobytes()
+        if key not in pos_id_map:
+            pos_id_map[key] = len(pos_id_map)
+        return pos_id_map[key]
+
+    all_pos = np.unique([r for r, _ in CONFIGS_SPEC], axis=0)
+    span = np.linalg.norm(all_pos.max(axis=0) - all_pos.min(axis=0))
+    arrow_len = max(span * 0.2, 0.04)
 
     fig = plt.figure(figsize=(8, 7))
-    ax = fig.add_subplot(111, projection="3d")
+    ax = cast(Axes3D, fig.add_subplot(111, projection="3d"))
 
-    plotted_positions = {}
+    plotted_positions: dict[int, bool] = {}
     for label, (r, d) in zip(CONFIG_LABELS, CONFIGS_SPEC):
-        pos_key = label[0]  # "A", "B", "C"
-        color = pos_colors[pos_key]
+        pid = pos_id(np.asarray(r))
+        if pid not in pos_color_map:
+            pos_color_map[pid] = palette[pid % len(palette)]
+        color = pos_color_map[pid]
         d_norm = np.array(d, dtype=float) / np.linalg.norm(d)
 
-        # 取り付け位置（初回のみマーカー）
-        if pos_key not in plotted_positions:
+        if pid not in plotted_positions:
             ax.scatter(*r, color=color, s=80, zorder=5,
-                       label=f"pos {pos_key}: {r}")
-            plotted_positions[pos_key] = True
+                       label=f"pos{pid+1}: ({r[0]:.3f}, {r[1]:.3f}, {r[2]:.3f})")
+            plotted_positions[pid] = True
 
-        # スピン軸の矢印
         ax.quiver(*r, *(d_norm * arrow_len),
                   color=color, arrow_length_ratio=0.3, linewidth=1.8)
         ax.text(*(r + d_norm * arrow_len * 1.2), label,
@@ -112,8 +105,12 @@ def plot_configs(save_path="configs_3d.png"):
     ax.set_title("RW mounting positions and spin-axis directions")
     ax.legend(fontsize=8, loc="upper left")
 
-    lim = 0.18
-    ax.set_xlim(-lim, lim); ax.set_ylim(-lim, lim); ax.set_zlim(-lim, lim)
+    margin = arrow_len * 1.5
+    lim_lo = all_pos.min(axis=0) - margin
+    lim_hi = all_pos.max(axis=0) + margin
+    ax.set_xlim(lim_lo[0], lim_hi[0])
+    ax.set_ylim(lim_lo[1], lim_hi[1])
+    ax.set_zlim(lim_lo[2], lim_hi[2])
     plt.tight_layout()
     plt.savefig(save_path, dpi=120)
     print(f"saved: {save_path}")

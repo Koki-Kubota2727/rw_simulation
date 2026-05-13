@@ -7,7 +7,8 @@ import matplotlib.pyplot as plt
 #   Y_mat(ω_n) = [Y_1(ω_n) | Y_2(ω_n) | ... | Y_6(ω_n)]  (6×6)
 #   G_hat(ω_n) = Y_mat @ inv(U_mat)
 
-DOF_LABELS = ["x1", "x2", "x3", "thx", "thy", "thz"]
+INPUT_LABELS  = ["Fx", "Fy", "Fz", "Mx", "My", "Mz"]   # 列: 入力（力・モーメント）
+OUTPUT_LABELS = ["x",  "y",  "z",  "θx", "θy", "θz"]   # 行: 出力（変位・角変位）
 
 
 def identify_G(U_freq_list, Y_freq_list, freq, Omega, n_harmonics,
@@ -82,46 +83,64 @@ def compare_G(G_hat, G_true_vals, harm_freqs, cond_U,
     cond_U      : (n_harmonics,)  条件数
     """
     n_h = len(harm_freqs)
+    from transfer_matrix import _CROSSTALK_RESONANCES
+    ct_set = {(r, c) for r, c, *_ in _CROSSTALK_RESONANCES}
 
     # --- 36 成分の振幅比較（6×6 グリッド） ---
-    fig, axes = plt.subplots(6, 6, figsize=(20, 18))
+    # 左マージン（行ラベル用）・上マージン（列ラベル用）を確保
+    fig, axes = plt.subplots(6, 6, figsize=(20, 18),
+                             gridspec_kw={"hspace": 0.15, "wspace": 0.35})
+
     for row in range(6):
         for col in range(6):
             ax = axes[row, col]
             amp_true = np.abs(G_true_vals[:, row, col])
             amp_hat  = np.abs(G_hat[:, row, col])
+
             ax.semilogy(harm_freqs, amp_true, "o-", color="steelblue",
-                        markersize=4, linewidth=1, label="G_true")
+                        markersize=4, linewidth=1.2, label="G_true")
             ax.semilogy(harm_freqs, amp_hat,  "x--", color="tomato",
-                        markersize=5, linewidth=1, label="G_hat")
-            ax.set_title(f"G[{DOF_LABELS[row]},{DOF_LABELS[col]}]", fontsize=7)
-            ax.tick_params(labelsize=5)
+                        markersize=5, linewidth=1.2, label="G_hat")
+            ax.tick_params(labelsize=7)
             ax.grid(True, which="both", alpha=0.3)
+
+            # x 軸: 最下行のみ表示
             if row < 5:
                 ax.set_xticklabels([])
+            else:
+                ax.set_xlabel("Freq [Hz]", fontsize=7)
 
-            # 縦軸スケール（transfer_matrix.py と同じ分類ルール）
-            from transfer_matrix import _CROSSTALK_RESONANCES
-            ct_set = {(r, c) for r, c, *_ in _CROSSTALK_RESONANCES}
+            # y 軸: 最左列のみ表示
+            if col > 0:
+                ax.set_yticklabels([])
+
+            # 縦軸スケール
             if row == col or (row, col) in ct_set:
-                # 対角・クロストーク共振: G_true と G_hat 両方が見えるよう全点の範囲で設定
-                vmin = min(np.min(amp_true), np.min(amp_hat))
+                vmin = min(np.min(amp_true[amp_true > 0] if amp_true.any() else [1e-10]),
+                           np.min(amp_hat[amp_hat > 0]   if amp_hat.any()  else [1e-10]))
                 vmax = max(np.max(amp_true), np.max(amp_hat))
                 if vmax > 0:
-                    ax.set_ylim([vmin * 0.5, vmax * 2.0])
+                    ax.set_ylim([vmin * 0.3, vmax * 3.0])
             else:
-                # フラット非対角: メジアン振幅を中心に 1 decade 幅
-                med = np.median(amp_true)
-                if med > 0:
-                    ax.set_ylim([med / np.sqrt(10), med * np.sqrt(10)])
+                med = np.median(amp_true[amp_true > 0]) if amp_true.any() else 1e-7
+                ax.set_ylim([med / 3, med * 3])
 
-    axes[0, 0].legend(fontsize=7)
-    fig.text(0.5, 0.01, "Frequency [Hz]", ha="center", fontsize=11)
-    fig.text(0.01, 0.5, "|G|", va="center", rotation="vertical", fontsize=11)
-    plt.suptitle("Identification result: |G_true| vs |G_hat| at harmonic frequencies",
-                 fontsize=11)
-    plt.tight_layout(rect=[0.02, 0.02, 1, 0.97])
-    plt.savefig(save_path, dpi=120)
+    # --- 列ヘッダー（入力 DOF）を最上行の上に配置 ---
+    for col in range(6):
+        axes[0, col].set_title(f"Input: {INPUT_LABELS[col]}", fontsize=9, pad=4)
+
+    # --- 行ラベル（出力 DOF）を最左列の左に配置 ---
+    for row in range(6):
+        axes[row, 0].set_ylabel(f"Output: {OUTPUT_LABELS[row]}", fontsize=9, labelpad=4)
+
+    # 凡例は左上セルのみ
+    axes[0, 0].legend(fontsize=8, loc="lower left")
+
+    fig.text(0.5, 0.005, "Frequency [Hz]", ha="center", fontsize=11)
+    fig.text(0.005, 0.5, "|G|", va="center", rotation="vertical", fontsize=11)
+    plt.suptitle("Identification result: |G_true| vs |G_hat|  —  rows: output DOF,  cols: input DOF",
+                 fontsize=12, y=0.995)
+    plt.savefig(save_path, dpi=120, bbox_inches="tight")
     print(f"saved: {save_path}")
     plt.show()
 
