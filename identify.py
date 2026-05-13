@@ -10,7 +10,8 @@ import matplotlib.pyplot as plt
 DOF_LABELS = ["x1", "x2", "x3", "thx", "thy", "thz"]
 
 
-def identify_G(U_freq_list, Y_freq_list, freq, Omega, n_harmonics):
+def identify_G(U_freq_list, Y_freq_list, freq, Omega, n_harmonics,
+               n_avg_bins=5, bw_ratio=None):
     """
     高調波周波数における伝達行列 G_hat(ω_n) を同定する。
 
@@ -21,6 +22,10 @@ def identify_G(U_freq_list, Y_freq_list, freq, Omega, n_harmonics):
     freq        : ndarray, shape (N_freq,)      周波数軸 [Hz]
     Omega       : float                          RW 基本角速度 [rad/s]
     n_harmonics : int                            高調波次数の最大値
+    n_avg_bins  : int, optional                  ビン平均するビン数（デフォルト=1、平均なし）
+                                                 bw_ratio 未指定時に使用。
+    bw_ratio    : float or None, optional        帯域幅を周波数の比率で指定（帯域 = fh × bw_ratio）。
+                                                 設定した場合は n_avg_bins より優先。
 
     Returns
     -------
@@ -30,6 +35,7 @@ def identify_G(U_freq_list, Y_freq_list, freq, Omega, n_harmonics):
     harm_idx   : ndarray, shape (n_harmonics,)     対応する周波数ビン番号
     """
     f0 = Omega / (2 * np.pi)
+    df = freq[1] - freq[0]
     harm_freqs = np.array([n * f0 for n in range(1, n_harmonics + 1)])
     harm_idx = np.array([np.argmin(np.abs(freq - fh)) for fh in harm_freqs])
 
@@ -37,17 +43,28 @@ def identify_G(U_freq_list, Y_freq_list, freq, Omega, n_harmonics):
     cond_U = np.zeros(n_harmonics)
 
     for ni, (fh, ki) in enumerate(zip(harm_freqs, harm_idx)):
-        # 6×6 行列をスタック（各列が 1 配置の入力/出力ベクトル）
-        U_mat = np.column_stack([U[ki, :] for U in U_freq_list])   # (6, 6)
-        Y_mat = np.column_stack([Y[ki, :] for Y in Y_freq_list])   # (6, 6)
+        if bw_ratio is not None:
+            n_bins = max(1, int(np.round(fh * bw_ratio / df)))
+        else:
+            n_bins = n_avg_bins
 
-        cond_U[ni] = np.linalg.cond(U_mat)
+        half = n_bins // 2
+        k_lo = max(0, ki - half)
+        k_hi = min(len(freq), ki + half + 1)
 
-        # G_hat = Y_mat @ inv(U_mat)
-        # G_hat[ni] = Y_mat @ np.linalg.inv(U_mat)
-        # 数値安定性を考慮して np.linalg.solve を使用
-        # Y_mat = G_hat @ U_mat  ⟹  U_mat.T @ G_hat.T = Y_mat.T
-        G_hat[ni] = np.linalg.solve(U_mat.T, Y_mat.T).T
+        # 各ビンの 6×6 行列を横方向にスタック → (6, n_bins*6) の過決定系
+        U_stacked = np.hstack([
+            np.column_stack([U[k, :] for U in U_freq_list]) for k in range(k_lo, k_hi)
+        ])
+        Y_stacked = np.hstack([
+            np.column_stack([Y[k, :] for Y in Y_freq_list]) for k in range(k_lo, k_hi)
+        ])
+
+        cond_U[ni] = np.linalg.cond(U_stacked)
+
+        # G @ U_stacked = Y_stacked  ⟹  U_stacked.T @ G.T = Y_stacked.T
+        G_T, _, _, _ = np.linalg.lstsq(U_stacked.T, Y_stacked.T, rcond=None)
+        G_hat[ni] = G_T.T
 
     return G_hat, cond_U, harm_freqs, harm_idx
 
