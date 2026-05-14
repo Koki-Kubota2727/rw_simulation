@@ -122,7 +122,7 @@ if __name__ == "__main__":
     from main import t, fs, Omega, n_harmonics
 
     # ---- 成分ごとの振幅スケール [Fx, Fy, Fz, Mx, My, Mz] ----
-    component_scales = np.array([1.0, 1.0, 0.1, 0.015, 0.015, 0.0015])
+    component_scales = np.array([0.7, 0.7, 0.1, 0.07, 0.07, 0.0030])
 
     # ---- Q値（ピークの鋭さ）: 大きいほど鋭い / None で純正弦波 ----
     # 半値幅 = f_n / Q  例: Q=30, f0=20Hz → 1次ピーク幅 ≈ 0.67 Hz
