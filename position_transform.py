@@ -56,7 +56,7 @@ def build_U_mat(u_rw):
     return np.column_stack([T @ u_rw for T in T_LIST])
 
 
-def plot_configs(save_path="configs_3d.png"):
+def plot_configs(save_path="png/configs_3d.png"):
     """取り付け位置と向きを3D空間上に矢印で描画する"""
     import matplotlib.pyplot as plt
     from mpl_toolkits.mplot3d.axes3d import Axes3D
@@ -112,6 +112,7 @@ def plot_configs(save_path="configs_3d.png"):
     ax.set_ylim(lim_lo[1], lim_hi[1])
     ax.set_zlim(lim_lo[2], lim_hi[2])
     plt.tight_layout()
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
     plt.savefig(save_path, dpi=120)
     print(f"saved: {save_path}")
     plt.show()

@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -62,7 +63,7 @@ def compute_outputs(U_rw_freq, T_list, G_omega, fs,
     return U_freq_list, Y_freq_list, y_time_list
 
 
-def plot_time_domain(t, y_time_list, config_labels, save_path="output_time.png",
+def plot_time_domain(t, y_time_list, config_labels, save_path="png/output_time.png",
                      t_start=0.0, t_end=1.0):
     """各配置の出力時間信号を描画（6成分 × N_configs）
 
@@ -89,6 +90,7 @@ def plot_time_domain(t, y_time_list, config_labels, save_path="output_time.png",
     plt.suptitle(f"Output time signals  y_i(t)  [{t_start:.2f} – {t_end:.2f} s]",
                  fontsize=12)
     plt.tight_layout()
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
     plt.savefig(save_path, dpi=120)
     print(f"saved: {save_path}")
     plt.show()
@@ -96,7 +98,7 @@ def plot_time_domain(t, y_time_list, config_labels, save_path="output_time.png",
 
 def plot_freq_domain(freq, U_freq_list, Y_freq_list, G_omega,
                      Omega, n_harmonics, config_labels,
-                     save_path="output_freq.png"):
+                     save_path="png/output_freq.png"):
     """
     各配置の出力スペクトルと入力スペクトルを並べて描画。
     高調波位置に縦線を引き、G*U の掛け算効果を視覚化する。
@@ -150,6 +152,7 @@ def plot_freq_domain(freq, U_freq_list, Y_freq_list, G_omega,
                  "(gray dashed: harmonics n·f0,  dotted: G_true resonances)",
                  fontsize=10)
     plt.tight_layout()
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
     plt.savefig(save_path, dpi=120)
     print(f"saved: {save_path}")
     plt.show()

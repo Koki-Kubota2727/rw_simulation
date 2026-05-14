@@ -1,3 +1,4 @@
+import os
 import numpy as np
 
 # --- Step 1: 真の伝達行列 G_true(ω) の定義 ---
@@ -142,6 +143,7 @@ if __name__ == "__main__":
     plt.suptitle("G_true all components (amplitude)  [blue=diag, orange=off-diag, red=diag f_n, green=crosstalk f_n]",
                  fontsize=11)
     plt.tight_layout(rect=[0.02, 0.02, 1, 0.97])
-    plt.savefig("G_true_all.png", dpi=120)
-    print("saved: G_true_all.png")
+    os.makedirs("png", exist_ok=True)
+    plt.savefig("png/G_true_all.png", dpi=120)
+    print("saved: png/G_true_all.png")
     plt.show()

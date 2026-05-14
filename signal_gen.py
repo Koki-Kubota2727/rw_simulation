@@ -1,3 +1,4 @@
+import os
 import numpy as np
 
 # --- Step 3: 入力信号の生成 ---
@@ -151,6 +152,7 @@ if __name__ == "__main__":
     axes[0, 0].legend(fontsize=7)
     plt.suptitle(f"RW Disturbance Spectrum  (RW Speed = {rpm:.0f} rpm)", fontsize=12)
     plt.tight_layout()
-    plt.savefig("u_rw_spectrum.png", dpi=120)
-    print("saved: u_rw_spectrum.png")
+    os.makedirs("png", exist_ok=True)
+    plt.savefig("png/u_rw_spectrum.png", dpi=120)
+    print("saved: png/u_rw_spectrum.png")
     plt.show()

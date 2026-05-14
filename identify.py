@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -71,7 +72,7 @@ def identify_G(U_freq_list, Y_freq_list, freq, Omega, n_harmonics,
 
 
 def compare_G(G_hat, G_true_vals, harm_freqs, cond_U,
-              save_path="identification_result.png"):
+              save_path="png/identification_result.png"):
     """
     G_hat と G_true を全 36 成分で比較する（振幅・位相・相対誤差）。
 
@@ -140,6 +141,7 @@ def compare_G(G_hat, G_true_vals, harm_freqs, cond_U,
     fig.text(0.005, 0.5, "|G|", va="center", rotation="vertical", fontsize=11)
     plt.suptitle("Identification result: |G_true| vs |G_hat|  —  rows: output DOF,  cols: input DOF",
                  fontsize=12, y=0.995)
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
     plt.savefig(save_path, dpi=120, bbox_inches="tight")
     print(f"saved: {save_path}")
     plt.show()
@@ -166,6 +168,7 @@ def compare_G(G_hat, G_true_vals, harm_freqs, cond_U,
     plt.suptitle("Identification quality metrics", fontsize=12)
     plt.tight_layout()
     err_path = save_path.replace(".png", "_error.png")
+    os.makedirs(os.path.dirname(err_path), exist_ok=True)
     plt.savefig(err_path, dpi=120)
     print(f"saved: {err_path}")
     plt.show()
